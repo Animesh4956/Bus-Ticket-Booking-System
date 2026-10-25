@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusGo - Online Bus Ticket Booking</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center space-x-3 text-2xl font-bold tracking-tight">
+                <i class="fa-solid fa-bus text-yellow-400"></i>
+                <span>BusGo Express</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <a href="/buses" class="hover:text-yellow-300 font-medium px-3 py-2 rounded-md transition">Browse Buses</a>
+                
+                <span th:if="${currentUser != null}" class="flex items-center space-x-3">
+                    <a th:if="${currentUser.role == 'ROLE_ADMIN'}" href="/admin/dashboard" class="bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg text-sm font-semibold shadow">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Admin Portal
+                    </a>
+                    <a th:if="${currentUser.role != 'ROLE_ADMIN'}" href="/dashboard" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-sm font-semibold border border-indigo-400 shadow">
+                        <i class="fa-solid fa-user mr-1"></i> My Account (<span th:text="${currentUser.username}"></span>)
+                    </a>
+                    <a href="/logout" class="text-rose-200 hover:text-white text-sm font-semibold">Logout</a>
+                </span>
+
+                <span th:if="${currentUser == null}" class="flex items-center space-x-2">
+                    <a href="/login" class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-sm font-semibold transition">Log In</a>
+                    <a href="/register" class="bg-yellow-400 hover:bg-yellow-500 text-indigo-900 font-bold px-4 py-1.5 rounded-lg text-sm transition shadow">Register</a>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="bg-gradient-to-r from-indigo-800 via-indigo-700 to-blue-600 text-white py-16 px-4">
+        <div class="max-w-4xl mx-auto text-center space-y-4">
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">Book Your Bus Tickets Safely & Swiftly</h1>
+            <p class="text-indigo-100 text-lg">Instant seat reservation, zero booking fee, and instant downloadable PDF confirmations.</p>
+
+            <!-- Search Card -->
+            <div class="mt-8 bg-white p-6 rounded-2xl shadow-2xl text-slate-800 text-left">
+                <form action="/buses" method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">From City</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-location-dot absolute left-3 top-3.5 text-slate-400"></i>
+                            <input type="text" name="source" list="fromCities" placeholder="e.g. New Delhi" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-medium">
+                            <datalist id="fromCities">
+                                <option th:each="s : ${sources}" th:value="${s}"></option>
+                            </datalist>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">To City</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-map-pin absolute left-3 top-3.5 text-slate-400"></i>
+                            <input type="text" name="destination" list="toCities" placeholder="e.g. Jaipur" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-medium">
+                            <datalist id="toCities">
+                                <option th:each="d : ${destinations}" th:value="${d}"></option>
+                            </datalist>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Travel Date</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-calendar-days absolute left-3 top-3.5 text-slate-400"></i>
+                            <input type="date" name="date" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-medium">
+                        </div>
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg shadow-md transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <span>Search Buses</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- PNR Status Quick Check Bar -->
+                <div class="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span class="text-xs font-bold text-slate-500 uppercase flex items-center space-x-1.5">
+                        <i class="fa-solid fa-qrcode text-indigo-600"></i>
+                        <span>Have a Ticket? Check PNR / Verify Boarding Pass:</span>
+                    </span>
+                    <form action="/pnr/search" method="GET" class="flex w-full sm:w-auto items-center space-x-2">
+                        <input type="text" name="pnr" required placeholder="e.g. TKT-100234" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs uppercase font-mono font-bold focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-1.5 rounded-lg text-xs shadow transition">
+                            Verify PNR
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Quick Access Demo Credentials Card -->
+    <section class="max-w-5xl mx-auto px-4 mt-8">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-key text-2xl text-amber-600"></i>
+                <div>
+                    <h3 class="font-bold text-amber-900 text-sm">Demo Accounts Ready:</h3>
+                    <p class="text-xs text-amber-800">
+                        <strong>Admin:</strong> admin / admin123 &nbsp;|&nbsp; 
+                        <strong>User 1:</strong> john / user123 &nbsp;|&nbsp; 
+                        <strong>User 2:</strong> sarah / user123
+                    </p>
+                </div>
+            </div>
+            <a href="/login" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition whitespace-nowrap shadow">
+                Direct Sign In
+            </a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="max-w-6xl mx-auto px-4 py-16">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-extrabold text-slate-900">Why Travel With BusGo?</h2>
+            <p class="text-slate-600 mt-2">Engineered for ease, transparency, and safety.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center hover:shadow-md transition">
+                <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-couch"></i>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 mb-2">Live Seat Picker</h3>
+                <p class="text-slate-600 text-sm">Select your exact preferred seat with our visual real-time seat layout map.</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center hover:shadow-md transition">
+                <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 mb-2">Instant PDF Confirmation</h3>
+                <p class="text-slate-600 text-sm">Download your official boarding pass & ticket PDF right after completing booking.</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center hover:shadow-md transition">
+                <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 mb-2">Admin Dashboard</h3>
+                <p class="text-slate-600 text-sm">Real-time bus occupancy tracker, booking management, and revenue analytics.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-auto bg-slate-900 text-slate-400 py-6 text-center text-sm">
+        <p>© 2026 BusGo Ticket Booking System. Built with Java 21, Spring Boot, and Thymeleaf.</p>
+    </footer>
+
+</body>
+</html>

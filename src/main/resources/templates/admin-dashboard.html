@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - BusGo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Admin Navbar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-shield-halved text-amber-400 text-2xl"></i>
+                <span class="text-xl font-bold tracking-tight">BusGo Admin Console</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold">
+                    Super Admin
+                </span>
+                <a href="/h2-console" target="_blank" class="text-xs text-slate-400 hover:text-white transition">H2 DB Console</a>
+                <a href="/logout" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full space-y-8">
+        
+        <!-- Alerts -->
+        <div th:if="${success}" class="bg-emerald-50 border-l-4 border-emerald-500 p-4 text-emerald-800 text-sm rounded shadow-sm">
+            <i class="fa-solid fa-circle-check mr-2"></i> <span th:text="${success}"></span>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-bus"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Active Buses</span>
+                    <span class="text-2xl font-black text-slate-800" th:text="${totalBuses}"></span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Confirmed Bookings</span>
+                    <span class="text-2xl font-black text-slate-800" th:text="${totalConfirmedBookings}"></span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Total Revenue</span>
+                    <span class="text-2xl font-black text-emerald-700">₹ <span th:text="${#numbers.formatDecimal(totalRevenue, 0, 'COMMA', 2, 'POINT')}"></span></span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Active System Users</span>
+                    <span class="text-2xl font-black text-slate-800">3 Registered</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Bus Fleet & Occupancy (How many people have booked each bus) -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Bus Fleet & Booking Occupancy Tracker</h2>
+                    <p class="text-xs text-slate-500">Monitor live passenger booking counts, seat load, and view passenger manifests.</p>
+                </div>
+                <button onclick="document.getElementById('addBusModal').classList.remove('hidden')" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm shadow transition flex items-center space-x-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add New Bus Route</span>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-400 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4">Bus Code</th>
+                            <th class="px-6 py-4">Operator / Name</th>
+                            <th class="px-6 py-4">Route</th>
+                            <th class="px-6 py-4">Date & Time</th>
+                            <th class="px-6 py-4">Fare</th>
+                            <th class="px-6 py-4">Occupancy / Booked Count</th>
+                            <th class="px-6 py-4 text-center">Passenger Manifest</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr th:each="bus : ${buses}" class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4 font-mono font-bold text-slate-900" th:text="${bus.busNumber}"></td>
+                            <td class="px-6 py-4">
+                                <span class="font-bold text-slate-800 block" th:text="${bus.busName}"></span>
+                                <span class="text-xs text-slate-400" th:text="${bus.busType}"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="font-bold text-indigo-700" th:text="${bus.source + ' ➔ ' + bus.destination}"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div th:text="${#temporals.format(bus.journeyDate, 'dd-MMM-yyyy')}"></div>
+                                <div class="text-xs text-slate-400" th:text="${bus.departureTime + ' - ' + bus.arrivalTime}"></div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-slate-800">₹ <span th:text="${bus.fare}"></span></td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-extrabold text-base text-indigo-600" th:text="${busBookingCounts[bus.id]}"></span>
+                                    <span class="text-xs text-slate-400">/ <span th:text="${bus.totalSeats}"></span> seats</span>
+                                </div>
+                                <!-- Progress Bar -->
+                                <div class="w-32 bg-slate-200 rounded-full h-2 mt-1.5 overflow-hidden">
+                                    <div class="bg-indigo-600 h-2 rounded-full" 
+                                         th:style="'width: ' + (${busBookingCounts[bus.id]} * 100 / ${bus.totalSeats}) + '%'"></div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <a th:href="@{'/admin/bus/' + ${bus.id} + '/passengers'}" 
+                                   class="inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg text-xs transition border border-indigo-200">
+                                    <i class="fa-solid fa-users-viewfinder"></i>
+                                    <span>View Passenger List</span>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section: All Customer Bookings Master List -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-xl font-bold text-slate-900">Recent Passenger Transactions</h2>
+                <p class="text-xs text-slate-500">Live feed of all customer bookings created across the system.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-400 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4">Booking Ref</th>
+                            <th class="px-6 py-4">Customer Account</th>
+                            <th class="px-6 py-4">Passenger Name</th>
+                            <th class="px-6 py-4">Bus Route</th>
+                            <th class="px-6 py-4">Seat</th>
+                            <th class="px-6 py-4">Fare Paid</th>
+                            <th class="px-6 py-4">Time</th>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4 text-center">PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr th:each="b : ${bookings}" class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4 font-mono font-bold text-slate-900" th:text="${b.bookingReference}"></td>
+                            <td class="px-6 py-4">
+                                <span class="font-bold text-slate-800" th:text="${b.user.username}"></span>
+                                <span class="block text-xs text-slate-400" th:text="${b.user.email}"></span>
+                            </td>
+                            <td class="px-6 py-4 font-medium text-slate-800" th:text="${b.passengerName}"></td>
+                            <td class="px-6 py-4 text-xs">
+                                <span class="font-bold text-slate-700" th:text="${b.bus.source + ' ➔ ' + b.bus.destination}"></span>
+                                <div class="text-slate-400" th:text="${b.bus.busNumber}"></div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-xs" th:text="${b.seatNumber}"></span>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-emerald-600">₹ <span th:text="${b.totalFare}"></span></td>
+                            <td class="px-6 py-4 text-xs text-slate-400" th:text="${#temporals.format(b.bookingTime, 'dd-MMM HH:mm')}"></td>
+                            <td class="px-6 py-4">
+                                <span th:if="${b.status == 'CONFIRMED'}" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-xs">CONFIRMED</span>
+                                <span th:if="${b.status == 'CANCELLED'}" class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-xs">CANCELLED</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <a th:href="@{'/booking/ticket-pdf/' + ${b.bookingReference}}" 
+                                   class="text-rose-600 hover:text-rose-800 font-bold text-xs" title="Download Official PDF">
+                                    <i class="fa-solid fa-file-pdf text-base"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Add New Bus -->
+    <div id="addBusModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-slate-200">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <h3 class="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-bus text-indigo-600"></i>
+                    <span>Schedule New Bus</span>
+                </h3>
+                <button onclick="document.getElementById('addBusModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <form action="/admin/bus/add" method="POST" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Bus Number</label>
+                        <input type="text" name="busNumber" required placeholder="e.g. KA-01-MJ-9999" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Operator / Bus Name</label>
+                        <input type="text" name="busName" required placeholder="e.g. Royal Travels" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Source City</label>
+                        <input type="text" name="source" required placeholder="e.g. Pune" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Destination City</label>
+                        <input type="text" name="destination" required placeholder="e.g. Goa" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Journey Date</label>
+                        <input type="date" name="journeyDate" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Departure</label>
+                        <input type="time" name="departureTime" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Arrival</label>
+                        <input type="time" name="arrivalTime" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fare (₹)</label>
+                        <input type="number" step="0.5" name="fare" required placeholder="750" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total Seats</label>
+                        <input type="number" name="totalSeats" value="32" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Bus Type</label>
+                        <select name="busType" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
+                            <option value="AC Seater">AC Seater</option>
+                            <option value="Luxury Volvo Multi-Axle">Luxury Volvo Multi-Axle</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button type="button" onclick="document.getElementById('addBusModal').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-sm font-semibold">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm">Create Bus Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

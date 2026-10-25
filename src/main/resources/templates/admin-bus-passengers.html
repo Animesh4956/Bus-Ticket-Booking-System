@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passenger Manifest - BusGo Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Admin Navbar -->
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-shield-halved text-amber-400 text-2xl"></i>
+                <span class="text-xl font-bold tracking-tight">BusGo Admin Console</span>
+            </div>
+            <a href="/admin/dashboard" class="text-slate-300 hover:text-white text-sm font-semibold flex items-center space-x-1">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back to Admin Dashboard</span>
+            </a>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full space-y-6">
+
+        <!-- Bus Details Header Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full uppercase" th:text="${bus.busType}"></span>
+                <h1 class="text-2xl font-bold text-slate-900 mt-2" th:text="${bus.busName}"></h1>
+                <p class="text-sm text-slate-500 font-mono" th:text="${bus.busNumber}"></p>
+            </div>
+            <div class="flex items-center space-x-8 text-sm">
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">ROUTE</span>
+                    <span class="font-bold text-slate-800" th:text="${bus.source + ' ➔ ' + bus.destination}"></span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">SCHEDULE</span>
+                    <span class="font-bold text-slate-800" th:text="${#temporals.format(bus.journeyDate, 'dd-MMM-yyyy')}"></span>
+                    <span class="text-xs text-indigo-600 block font-bold" th:text="${bus.departureTime + ' - ' + bus.arrivalTime}"></span>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-xl text-center">
+                    <span class="text-xs text-indigo-600 font-bold uppercase block">Booked Passengers</span>
+                    <span class="text-xl font-black text-indigo-900" th:text="${#lists.size(passengers)}"></span>
+                    <span class="text-xs text-slate-500 font-semibold">/ <span th:text="${bus.totalSeats}"></span> total</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Passenger Manifest Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-clipboard-user text-indigo-600"></i>
+                    <span>Passenger Boarding List</span>
+                </h2>
+                <button onclick="window.print()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-semibold text-slate-700">
+                    <i class="fa-solid fa-print mr-1"></i> Print Manifest
+                </button>
+            </div>
+
+            <div th:if="${#lists.isEmpty(passengers)}" class="p-12 text-center text-slate-500">
+                <i class="fa-solid fa-chair text-3xl text-slate-300 mb-2"></i>
+                <p>No passengers booked for this bus route yet.</p>
+            </div>
+
+            <div th:if="${!#lists.isEmpty(passengers)}" class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-400 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4">Seat</th>
+                            <th class="px-6 py-4">Passenger Name</th>
+                            <th class="px-6 py-4">Age / Gender</th>
+                            <th class="px-6 py-4">Ticket Ref</th>
+                            <th class="px-6 py-4">Account User</th>
+                            <th class="px-6 py-4">Contact</th>
+                            <th class="px-6 py-4 text-center">Ticket PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr th:each="p : ${passengers}" class="hover:bg-slate-50">
+                            <td class="px-6 py-4">
+                                <span class="bg-indigo-600 text-white font-black px-3 py-1 rounded-lg text-xs" th:text="${p.seatNumber}"></span>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-slate-900" th:text="${p.passengerName}"></td>
+                            <td class="px-6 py-4">
+                                <span th:text="${p.passengerAge != null ? p.passengerAge + ' yrs' : 'N/A'}"></span> / 
+                                <span th:text="${p.passengerGender != null ? p.passengerGender : 'N/A'}"></span>
+                            </td>
+                            <td class="px-6 py-4 font-mono font-bold text-slate-700" th:text="${p.bookingReference}"></td>
+                            <td class="px-6 py-4" th:text="${p.user.fullName + ' (@' + p.user.username + ')'}"></td>
+                            <td class="px-6 py-4 text-xs font-mono" th:text="${p.user.phone}"></td>
+                            <td class="px-6 py-4 text-center">
+                                <a th:href="@{'/booking/ticket-pdf/' + ${p.bookingReference}}" class="text-rose-600 hover:text-rose-800 font-bold">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

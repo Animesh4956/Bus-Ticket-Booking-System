@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seat Selection - BusGo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .seat {
+            transition: all 0.15s ease-in-out;
+            user-select: none;
+        }
+        .seat.available:hover {
+            transform: scale(1.08);
+            border-color: #059669;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .seat.selected {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+            border-color: #3730a3 !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center space-x-3 text-2xl font-bold tracking-tight">
+                <i class="fa-solid fa-bus text-yellow-400"></i>
+                <span>BusGo Express</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <a href="/buses" class="text-white hover:text-yellow-300 text-sm font-semibold">← Change Bus</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+        <!-- Bus Summary Banner -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase" th:text="${bus.busType}"></span>
+                <h1 class="text-2xl font-bold text-slate-900 mt-1" th:text="${bus.busName}"></h1>
+                <p class="text-sm text-slate-500 font-mono" th:text="${bus.busNumber}"></p>
+            </div>
+            <div class="flex items-center space-x-8 text-sm">
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">ROUTE</span>
+                    <span class="font-bold text-slate-800" th:text="${bus.source + ' ➔ ' + bus.destination}"></span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">JOURNEY DATE</span>
+                    <span class="font-bold text-slate-800" th:text="${#temporals.format(bus.journeyDate, 'dd-MMM-yyyy')}"></span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">FARE PER SEAT</span>
+                    <span class="text-xl font-black text-emerald-600">₹ <span id="unitFare" th:text="${bus.fare}"></span></span>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${error}" class="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 text-rose-700 text-sm rounded shadow-sm">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i> <span th:text="${error}"></span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left: Interactive Visual Seat Layout (Bus Grid) -->
+            <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-2">
+                    <div>
+                        <h3 class="font-bold text-slate-800 flex items-center space-x-2">
+                            <i class="fa-solid fa-chair text-indigo-600"></i>
+                            <span>Select Your Seat(s)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Click seats to select. Dedicated passenger fields appear for every seat!</p>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="flex items-center space-x-3 text-xs font-semibold">
+                        <div class="flex items-center space-x-1">
+                            <div class="w-4 h-4 bg-white border-2 border-emerald-500 rounded"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <div class="w-4 h-4 bg-indigo-600 rounded"></div>
+                            <span>Selected</span>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <div class="w-4 h-4 bg-rose-100 border border-rose-300 rounded"></div>
+                            <span class="text-slate-400">Booked</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bus Cabin Simulator -->
+                <div class="max-w-xs mx-auto border-4 border-slate-300 rounded-3xl p-5 bg-slate-50 relative shadow-inner">
+                    <div class="flex justify-between items-center mb-6 pb-3 border-b-2 border-dashed border-slate-300">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Front of Bus</span>
+                        <div class="flex items-center space-x-1 text-slate-600 bg-slate-200 px-2 py-1 rounded text-xs font-bold">
+                            <i class="fa-solid fa-dharmachakra"></i>
+                            <span>Driver</span>
+                        </div>
+                    </div>
+
+                    <!-- 32 Seats Grid (8 Rows, 2x2 layout with aisle) -->
+                    <div class="grid grid-cols-5 gap-3 text-center">
+                        <th:block th:each="i : ${#numbers.sequence(1, 32)}">
+                            
+                            <th:block th:with="seatCode=${'S' + i}, isBooked=${#sets.contains(bookedSeats, seatCode)}">
+                                
+                                <button th:if="${isBooked}" type="button" disabled
+                                        class="seat booked bg-rose-100 border border-rose-300 text-rose-400 font-bold p-2.5 rounded-lg text-xs cursor-not-allowed opacity-75">
+                                    <i class="fa-solid fa-couch block mb-1"></i>
+                                    <span th:text="${seatCode}"></span>
+                                </button>
+
+                                <button th:unless="${isBooked}" type="button"
+                                        th:id="${'seat-btn-' + seatCode}"
+                                        th:data-seat="${seatCode}"
+                                        onclick="toggleSeat(this.getAttribute('data-seat'))"
+                                        class="seat available bg-white border-2 border-emerald-500 text-slate-800 font-bold p-2.5 rounded-lg text-xs shadow-sm hover:bg-emerald-50 cursor-pointer">
+                                    <i class="fa-solid fa-couch block mb-1 text-emerald-600"></i>
+                                    <span th:text="${seatCode}"></span>
+                                </button>
+
+                            </th:block>
+
+                            <div th:if="${i % 4 == 2}" class="flex items-center justify-center text-xs text-slate-300 font-mono font-bold">
+                                |
+                            </div>
+
+                        </th:block>
+                    </div>
+
+                    <div class="text-center mt-6 pt-3 border-t-2 border-dashed border-slate-300 text-xs text-slate-400 uppercase tracking-widest font-semibold">
+                        Rear / Back
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right: Dynamic Multi-Passenger Form -->
+            <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                        <i class="fa-solid fa-users text-indigo-600"></i>
+                        <span>Passenger Details</span>
+                    </h3>
+                    <span id="selectedCountBadge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-full">0 Seats Selected</span>
+                </div>
+
+                <form action="/book/confirm" method="POST" id="bookingForm" class="space-y-4">
+                    <input type="hidden" name="busId" th:value="${bus.id}">
+                    <input type="hidden" name="seatNumbers" id="selectedSeatsInput" required>
+                    <input type="hidden" name="paymentMethod" id="selectedPaymentMethod" value="UPI">
+
+                    <!-- Selected Seats Badges -->
+                    <div class="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl">
+                        <span class="text-xs text-indigo-600 font-bold uppercase tracking-wider block mb-1.5">Selected Seats:</span>
+                        <div id="chosenSeatsDisplay" class="flex flex-wrap gap-1.5 items-center">
+                            <span class="text-slate-400 text-xs italic">Pick seats on the bus map to begin...</span>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Per-Seat Passenger Input Cards Container -->
+                    <div id="passengersContainer" class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                        <!-- Populated dynamically by JavaScript -->
+                    </div>
+
+                    <!-- Fare Breakdown -->
+                    <div class="pt-4 border-t border-slate-100 space-y-2 text-sm">
+                        <div class="flex justify-between text-slate-600">
+                            <span>Base Fare (<span id="summarySeatCount">0</span> seat(s))</span>
+                            <span>₹ <span id="baseFareDisplay">0.00</span></span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Taxes & Service Fees</span>
+                            <span class="text-emerald-600 font-semibold">₹ 0.00 (Zero Fee)</span>
+                        </div>
+                        <div class="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-200">
+                            <span>Total Payable</span>
+                            <span class="text-emerald-600">₹ <span id="totalFareDisplay">0.00</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Proceed to Pay with UPI QR Button -->
+                    <button type="button" id="bookBtn" disabled onclick="openPaymentModal()"
+                            class="w-full bg-slate-300 text-slate-500 font-bold py-3.5 rounded-xl text-sm transition shadow cursor-not-allowed flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-qrcode text-base"></i>
+                        <span>Pay via UPI QR & Book Ticket</span>
+                    </button>
+                    <p id="seatWarning" class="text-xs text-rose-500 text-center font-medium">Please select at least one seat from the bus cabin above.</p>
+                </form>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- UPI QR Code Payment Modal -->
+    <div id="paymentModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center animate-fade-in">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <div class="flex items-center space-x-2 text-indigo-700">
+                    <i class="fa-solid fa-qrcode text-xl"></i>
+                    <h3 class="font-extrabold text-slate-900 text-base">Scan UPI QR to Pay</h3>
+                </div>
+                <button onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Total Amount Card -->
+            <div class="bg-indigo-50/70 p-3 rounded-2xl mb-4 border border-indigo-100">
+                <span class="text-xs text-indigo-600 font-semibold uppercase tracking-wider block">Total Amount Payable</span>
+                <span class="text-2xl font-black text-slate-900">₹ <span id="modalTotalFare">0.00</span></span>
+            </div>
+
+            <!-- User's UPI QR Image -->
+            <div class="bg-white p-3 border-2 border-dashed border-indigo-300 rounded-2xl inline-block shadow-sm mb-4">
+                <img th:src="@{/images/upi-qr.jpg}" alt="UPI Payment QR Code" 
+                     class="w-56 h-56 object-contain rounded-xl mx-auto" />
+            </div>
+
+            <p class="text-xs text-slate-500 font-medium mb-5">
+                Scan using any UPI App (Google Pay, PhonePe, Paytm, BHIM) and click <strong>Done</strong> below once paid.
+            </p>
+
+            <!-- Done Button to finalize and book the ticket -->
+            <button type="button" onclick="submitBooking()" 
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center space-x-2 cursor-pointer">
+                <i class="fa-solid fa-circle-check text-base"></i>
+                <span>Done (Payment Completed)</span>
+            </button>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        const baseFare = /*[[${bus.fare}]]*/ 650.0;
+        const loggedInFullName = /*[[${currentUser.fullName}]]*/ 'Passenger';
+        let selectedSeats = new Set();
+        let selectedMethod = 'UPI';
+
+        // Cache entered values across seat clicks
+        const passengerDataCache = {};
+
+        function toggleSeat(seatCode) {
+            const btn = document.getElementById('seat-btn-' + seatCode);
+            if (!btn) return;
+
+            if (selectedSeats.has(seatCode)) {
+                selectedSeats.delete(seatCode);
+                btn.classList.remove('selected');
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = "fa-solid fa-couch block mb-1 text-emerald-600";
+            } else {
+                selectedSeats.add(seatCode);
+                btn.classList.add('selected');
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = "fa-solid fa-couch block mb-1 text-white";
+            }
+
+            renderPassengerForms();
+            updateUI();
+        }
+
+        function renderPassengerForms() {
+            const container = document.getElementById('passengersContainer');
+            const seatsArray = getSortedSeats();
+
+            // Save any values currently typed before re-rendering
+            seatsArray.forEach(seat => {
+                const nameInput = document.getElementById(`p_name_${seat}`);
+                const ageInput = document.getElementById(`p_age_${seat}`);
+                const genInput = document.getElementById(`p_gender_${seat}`);
+                if (nameInput) {
+                    passengerDataCache[seat] = {
+                        name: nameInput.value,
+                        age: ageInput ? ageInput.value : '25',
+                        gender: genInput ? genInput.value : 'Male'
+                    };
+                }
+            });
+
+            container.innerHTML = '';
+
+            seatsArray.forEach((seat, index) => {
+                const existing = passengerDataCache[seat] || {
+                    name: (index === 0 ? loggedInFullName : ''),
+                    age: '25',
+                    gender: 'Male'
+                };
+
+                const card = document.createElement('div');
+                card.className = "p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                        <span class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-user text-indigo-600 text-xs"></i>
+                            <span>Passenger ${index + 1} &bull; <strong class="text-indigo-600 font-mono">Seat ${seat}</strong></span>
+                        </span>
+                        ${index === 0 ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded">Lead Passenger</span>' : ''}
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase">Full Name *</label>
+                        <input type="text" id="p_name_${seat}" name="passenger_name_${seat}" value="${existing.name}" required placeholder="Passenger name"
+                               class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase">Age</label>
+                            <input type="number" id="p_age_${seat}" name="passenger_age_${seat}" min="1" max="120" value="${existing.age}" required
+                                   class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase">Gender</label>
+                            <select id="p_gender_${seat}" name="passenger_gender_${seat}" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                                <option value="Male" ${existing.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                <option value="Female" ${existing.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                <option value="Other" ${existing.gender === 'Other' ? 'selected' : ''}>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function getSortedSeats() {
+            return Array.from(selectedSeats).sort((a, b) => {
+                const numA = parseInt(a.replace('S', ''));
+                const numB = parseInt(b.replace('S', ''));
+                return numA - numB;
+            });
+        }
+
+        function updateUI() {
+            const seatsArray = getSortedSeats();
+            document.getElementById('selectedSeatsInput').value = seatsArray.join(', ');
+
+            const displayContainer = document.getElementById('chosenSeatsDisplay');
+            if (seatsArray.length === 0) {
+                displayContainer.innerHTML = '<span class="text-slate-400 text-xs italic">Pick seats on the bus map to begin...</span>';
+            } else {
+                displayContainer.innerHTML = seatsArray.map(seat => 
+                    `<span class="bg-indigo-600 text-white font-mono font-bold text-xs px-2.5 py-0.5 rounded shadow-sm">${seat}</span>`
+                ).join('');
+            }
+
+            const count = seatsArray.length;
+            document.getElementById('selectedCountBadge').innerText = count + (count === 1 ? ' Seat' : ' Seats');
+            document.getElementById('summarySeatCount').innerText = count;
+
+            const total = (count * baseFare).toFixed(2);
+            document.getElementById('baseFareDisplay').innerText = total;
+            document.getElementById('totalFareDisplay').innerText = total;
+            document.getElementById('modalTotalFare').innerText = total;
+
+            const bookBtn = document.getElementById('bookBtn');
+            const seatWarning = document.getElementById('seatWarning');
+
+            if (count > 0) {
+                bookBtn.disabled = false;
+                bookBtn.className = "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg cursor-pointer";
+                seatWarning.style.display = 'none';
+            } else {
+                bookBtn.disabled = true;
+                bookBtn.className = "w-full bg-slate-300 text-slate-500 font-bold py-3 rounded-xl text-sm transition shadow cursor-not-allowed";
+                seatWarning.style.display = 'block';
+            }
+        }
+
+        function openPaymentModal() {
+            // Validate that names are filled
+            const seatsArray = getSortedSeats();
+            for (let seat of seatsArray) {
+                const nameInput = document.getElementById(`p_name_${seat}`);
+                if (!nameInput || !nameInput.value.trim()) {
+                    alert('Please enter the name for passenger on Seat ' + seat);
+                    nameInput.focus();
+                    return;
+                }
+            }
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+        }
+
+        function selectPaymentMethod(method) {
+            selectedMethod = method;
+            document.getElementById('selectedPaymentMethod').value = method;
+
+            ['UPI', 'CARD', 'NET_BANKING'].forEach(m => {
+                const el = document.getElementById('opt-' + m);
+                const icon = el.querySelector('.check-icon');
+                if (m === method) {
+                    el.className = "flex items-center justify-between p-3.5 border-2 border-indigo-600 bg-indigo-50/50 rounded-xl cursor-pointer payment-option";
+                    icon.className = "fa-solid fa-circle-check text-indigo-600 text-lg check-icon";
+                } else {
+                    el.className = "flex items-center justify-between p-3.5 border border-slate-200 rounded-xl cursor-pointer payment-option hover:bg-slate-50";
+                    icon.className = "fa-regular fa-circle text-slate-300 text-lg check-icon";
+                }
+            });
+        }
+
+        function submitBooking() {
+            document.getElementById('bookingForm').submit();
+        }
+    </script>
+</body>
+</html>
